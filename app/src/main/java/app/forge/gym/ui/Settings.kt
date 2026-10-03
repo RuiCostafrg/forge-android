@@ -110,7 +110,7 @@ import kotlinx.coroutines.*
                 Text("Unreviewed imports do not count toward calendar, weekly totals, or dated charts. The imported chart option follows note order.", color = Muted, fontSize = 12.sp)
             }
         }
-        item { Text("FORGE 1.0 · Native Android / Kotlin", color = Muted, fontSize = 11.sp, modifier = Modifier.padding(bottom = 14.dp)) }
+        item { Text("FORGE 0.0.1 · Native Android / Kotlin", color = Muted, fontSize = 11.sp, modifier = Modifier.padding(bottom = 14.dp)) }
     }
     if (pendingBackup != null) ConfirmDialog("Replace local data?", pendingSummary, "Restore", { pendingBackup = null }) { vm.importBackup(pendingBackup!!) }
     if (recover) ConfirmDialog("Recover previous revision?", "The current data will be replaced by the last valid saved revision. Export a backup first if you want to keep the current version.", "Recover", { recover = false }) { vm.recover() }

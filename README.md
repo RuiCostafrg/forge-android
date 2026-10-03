@@ -17,6 +17,12 @@ Data is saved by a background writer to a transactional SQLite snapshot with the
 Corrupt startup data blocks edits until recovery or restore, rather than silently resetting.
 Automatic cloud/device-transfer backup is excluded. Export JSON before uninstalling.
 
+## Install
+
+Download the APK from the [GitHub releases](https://github.com/RuiCostafrg/forge-android/releases) and open it on your Android phone.
+If prompted, allow your browser or file manager to install unknown apps. These are signed development builds for testing.
+Export a JSON backup before uninstalling the app.
+
 ## Build
 
 Open the project in Android Studio with JDK 17 and Android SDK 35.
