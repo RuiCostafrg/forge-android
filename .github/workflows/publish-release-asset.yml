@@ -1,0 +1,39 @@
+name: Publish verified Android release asset
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Existing release tag
+        required: true
+        type: string
+      blob_sha:
+        description: Git blob containing the signed APK
+        required: true
+        type: string
+      expected_sha256:
+        description: SHA-256 of the verified APK
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Verify and publish the signed APK
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+          BLOB_SHA: ${{ inputs.blob_sha }}
+          EXPECTED_SHA256: ${{ inputs.expected_sha256 }}
+        run: |
+          set -euo pipefail
+          ASSET_NAME="Forge-Android-${RELEASE_TAG}.apk"
+          gh api "repos/${GITHUB_REPOSITORY}/git/blobs/${BLOB_SHA}" --jq .content | base64 --decode > "$ASSET_NAME"
+          printf '%s  %s\n' "$EXPECTED_SHA256" "$ASSET_NAME" > "${ASSET_NAME}.sha256"
+          sha256sum --check "${ASSET_NAME}.sha256"
+          gh release upload "$RELEASE_TAG" "$ASSET_NAME" "${ASSET_NAME}.sha256" --repo "$GITHUB_REPOSITORY" --clobber
