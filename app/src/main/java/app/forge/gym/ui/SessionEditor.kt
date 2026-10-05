@@ -43,8 +43,8 @@ import java.time.LocalDate
             ForgeCard {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) { Tag(if (w.needsReview) "NEEDS REVIEW" else if (w.complete) "FINISHED" else "DRAFT", !w.needsReview); Tag("ON DEVICE", true) }
                 OutlinedTextField(name, { value -> if (value.length <= 80) { name = value; if (value.isNotBlank()) vm.update(w.id) { it.copy(name = value) } } }, label = { Text("Session title") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
-                TypePicker(w.type, { type -> vm.update(w.id) { it.copy(type = type) } })
-                Text("Changing the type keeps your exercises.", color = Muted, fontSize = 10.sp)
+                TypePicker(w.type, { type -> vm.selectType(w.id, type) })
+                Text(if (w.complete) "Reopen to add exercises from your program." else "Selecting a type adds its program exercises and keeps your existing sets.", color = Muted, fontSize = 10.sp)
                 OutlinedButton(onClick = {
                     val initial = w.date?.let(LocalDate::ofEpochDay) ?: LocalDate.now()
                     DatePickerDialog(context, { _, year, month, day -> vm.update(w.id) { it.copy(date = LocalDate.of(year, month + 1, day).toEpochDay()) } }, initial.year, initial.monthValue - 1, initial.dayOfMonth).show()

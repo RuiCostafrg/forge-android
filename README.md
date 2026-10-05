@@ -10,6 +10,7 @@ English interface, kilograms, Sunday-first calendars. Android 8.0+ (API 26).
 - Logging of kg/reps/sets, warm-up flags, session/exercise/set notes, training maxima, previous weights, and a persistent rest timer.
 - Session dates and types, custom exercise library, reordering, finish/reopen, and deletion.
 - Editable seven-day Push/Pull/Legs/Upper/Lower program, including rest days.
+- Selecting a session type adds the saved program's exercises and set/rep targets, including when training on a different day. Existing exercises and logged sets are kept, without duplicates.
 - JSON export and confirmed restore, previous valid revision recovery, and conservative training-note parsing.
 
 No accounts, Internet permission, analytics, cloud sync, or API keys.
@@ -69,6 +70,5 @@ The rest timer persists its deadline but does not issue background notifications
 
 ## Validation
 
-The original Android build passed 28 core tests, lint, and APK signature verification.
-The public-source build passed 29 core tests, including a starter dataset privacy check.
+Version 0.0.2 adds automatic session population from your saved program. If a type occurs on multiple days, the session's day takes priority, followed by the first matching program day. Types without a saved template use built-in targets.
 Native instrumentation tests are included; device UI execution has not been completed in the cloud.

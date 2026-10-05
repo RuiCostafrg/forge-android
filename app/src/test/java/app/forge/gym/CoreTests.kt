@@ -36,6 +36,72 @@ class CoreTests {
     @Test fun startingCopiesTargetsAndPreviousWeights() { val s = Training.start(AppState(sessions = listOf(workout())), WorkoutType.PUSH, 4000, LocalDate.of(2026, 10, 4).toEpochDay()); assertEquals("100", s.sessions.last().exercises.first().sets.first().weight); assertEquals(4, s.sessions.last().exercises.first().sets.size); assertFalse(s.sessions.last().complete) }
     @Test fun restDayCustomSessionStartsEmpty() { val s = Training.start(AppState(), WorkoutType.CUSTOM, 4000, LocalDate.of(2026, 10, 3).toEpochDay()); assertTrue(s.sessions.last().exercises.isEmpty()) }
     @Test fun changingTypePreservesExercises() { val s = AppState(sessions = listOf(workout())); val updated = Training.update(s, "session") { it.copy(type = WorkoutType.LEGS) }; assertEquals(s.sessions.first().exercises, updated.sessions.first().exercises) }
+    @Test fun startingOffScheduleUsesSavedTemplateAndRest() {
+        val custom = Exercise("custom-press", "My press", "Shoulders")
+        val state = AppState(exercises = exerciseLibrary + custom, program = defaultProgram.map {
+            if (it.day == 0) it.copy(exercises = listOf(PlanExercise(custom.id, 2, 6)), restSeconds = 180) else it
+        })
+        val started = Training.start(state, WorkoutType.PUSH, 4000, LocalDate.of(2026, 10, 3).toEpochDay())
+        val exercise = started.sessions.last().exercises.single()
+        assertEquals(custom.id, exercise.exerciseId)
+        assertEquals(custom.name, exercise.name)
+        assertEquals(2, exercise.sets.size)
+        assertTrue(exercise.sets.all { it.reps == "6" && it.weight == "0" && !it.done })
+        assertEquals(180, started.restSeconds)
+    }
+    @Test fun sessionDateChoosesMatchingTemplateWhenTypeRepeats() {
+        val state = AppState(program = defaultProgram.map {
+            if (it.day == 2) it.copy(type = WorkoutType.PUSH, exercises = listOf(PlanExercise("dip", 2, 7))) else it
+        })
+        val started = Training.start(state, WorkoutType.PUSH, 4000, LocalDate.of(2026, 10, 6).toEpochDay())
+        assertEquals("dip", started.sessions.last().exercises.single().exerciseId)
+    }
+    @Test fun absentProgramTypeUsesBuiltInTargets() {
+        val state = AppState(program = defaultProgram.map { it.copy(type = WorkoutType.REST, exercises = emptyList()) })
+        val started = Training.start(state, WorkoutType.PULL, 4000)
+        assertEquals(defaultExercises(WorkoutType.PULL).map { it.exerciseId }, started.sessions.last().exercises.map { it.exerciseId })
+    }
+    @Test fun selectingTemplatePopulatesEmptyDraftWithPreviousWeightsAndFreshSets() {
+        val draft = workout().copy(id = "draft", type = WorkoutType.CUSTOM, date = null, finishedAt = null, exercises = emptyList())
+        val state = AppState(sessions = listOf(workout(), draft))
+        val result = Training.selectType(state, draft.id, WorkoutType.PUSH).sessions.last()
+        assertEquals(WorkoutType.PUSH, result.type)
+        assertEquals(defaultExercises(WorkoutType.PUSH).map { it.exerciseId }, result.exercises.map { it.exerciseId })
+        val sets = result.exercises.first().sets
+        assertEquals(4, sets.size)
+        assertTrue(sets.all { it.weight == "100" && it.reps == "8" && !it.done })
+        val ids = result.exercises.flatMap { it.sets }.map { it.id }
+        assertEquals(ids.size, ids.toSet().size)
+        assertFalse(ids.contains(state.sessions.first().exercises.first().sets.first().id))
+    }
+    @Test fun selectingTemplateKeepsLoggedSetsAndDoesNotDuplicateExercises() {
+        val draft = workout().copy(finishedAt = null, note = "Keep this", exercises = listOf(workout().exercises.first().copy(note = "Bench notes")))
+        val state = AppState(sessions = listOf(draft), program = defaultProgram.map {
+            if (it.type == WorkoutType.PUSH) it.copy(exercises = listOf(PlanExercise("bench", 8, 12), PlanExercise("dip", 2, 7))) else it
+        })
+        val once = Training.selectType(state, draft.id, WorkoutType.PUSH)
+        val twice = Training.selectType(once, draft.id, WorkoutType.PUSH)
+        val result = twice.sessions.single()
+        assertEquals(once, twice)
+        assertEquals(draft.exercises.single(), result.exercises.first())
+        assertEquals("Keep this", result.note)
+        assertEquals(listOf("bench", "dip"), result.exercises.map { it.exerciseId })
+        assertTrue(result.exercises.last().sets.all { it.reps == "7" && !it.done })
+    }
+    @Test fun selectingTypeInFinishedSessionKeepsRecordedExercises() {
+        val finished = workout()
+        val result = Training.selectType(AppState(sessions = listOf(finished)), finished.id, WorkoutType.LEGS).sessions.single()
+        assertEquals(finished.copy(type = WorkoutType.LEGS), result)
+    }
+    @Test fun emptySavedTemplateDoesNotFallBackToDefaults() {
+        val state = AppState(program = defaultProgram.map { if (it.type == WorkoutType.PUSH) it.copy(exercises = emptyList()) else it })
+        assertTrue(Training.start(state, WorkoutType.PUSH, 4000).sessions.single().exercises.isEmpty())
+    }
+    @Test fun selectingRestKeepsExistingSetsWithoutAddingExercises() {
+        val draft = workout().copy(finishedAt = null)
+        val state = AppState(sessions = listOf(draft), program = defaultProgram.map { if (it.type == WorkoutType.REST) it.copy(exercises = listOf(PlanExercise("squat"))) else it })
+        assertEquals(draft.copy(type = WorkoutType.REST), Training.selectType(state, draft.id, WorkoutType.REST).sessions.single())
+    }
     @Test(expected = IllegalArgumentException::class) fun finishRequiresCompletedSet() { Training.finish(AppState(sessions = listOf(workout(SetEntry()))), "session", 5000) }
     @Test(expected = IllegalArgumentException::class) fun confirmRequiresFullDate() { Training.confirm(AppState(sessions = listOf(workout(review = true).copy(date = null))), "session") }
     @Test fun confirmEnablesCalendarTotals() { val s = Training.confirm(AppState(sessions = listOf(workout(review = true))), "session"); assertTrue(s.sessions.first().included) }

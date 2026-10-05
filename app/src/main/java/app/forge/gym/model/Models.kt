@@ -78,15 +78,31 @@ val defaultProgram = listOf(WorkoutType.PUSH, WorkoutType.PULL, WorkoutType.LEGS
 enum class Metric(val label: String) { TOP_WEIGHT("Top weight"), ESTIMATED_MAX("Estimated 1RM"), TRAINING_MAX("Training max") }
 data class ProgressPoint(val sessionId: String, val label: String, val value: Double)
 object Training {
-    fun start(state: AppState, type: WorkoutType, now: Long, date: Long = today()): AppState {
-        val plan = state.program.first { it.day == sundayIndex(LocalDate.ofEpochDay(date)) }
-        val targets = if (plan.type == type) plan.exercises else defaultExercises(type)
-        val exerciseLogs = targets.map { target ->
+    private fun template(state: AppState, type: WorkoutType, date: Long?): DayPlan? {
+        if (type == WorkoutType.REST) return null
+        val day = date?.let { sundayIndex(LocalDate.ofEpochDay(it)) }
+        return state.program.firstOrNull { it.day == day && it.type == type }
+            ?: state.program.sortedBy { it.day }.firstOrNull { it.type == type }
+    }
+    private fun templateExercises(state: AppState, type: WorkoutType, date: Long?): List<WorkoutExercise> {
+        val targets = template(state, type, date)?.exercises ?: defaultExercises(type)
+        return targets.map { target ->
             val exercise = state.exercises.first { it.id == target.exerciseId }
             val previous = previousSet(state, exercise.id)
             WorkoutExercise(exercise.id, exercise.name, exercise.group, List(target.sets) { SetEntry(weight = previous?.weight ?: "0", reps = target.reps.toString()) })
         }
-        return state.copy(sessions = state.sessions + Workout(name = "${type.label} session", type = type, date = date, startedAt = now, exercises = exerciseLogs), restSeconds = plan.restSeconds, restEndsAt = null)
+    }
+    fun start(state: AppState, type: WorkoutType, now: Long, date: Long = today()): AppState {
+        val plan = template(state, type, date)
+        return state.copy(sessions = state.sessions + Workout(name = "${type.label} session", type = type, date = date, startedAt = now, exercises = templateExercises(state, type, date)), restSeconds = plan?.restSeconds ?: state.restSeconds, restEndsAt = null)
+    }
+    fun selectType(state: AppState, id: String, type: WorkoutType): AppState = update(state, id) { workout ->
+        if (workout.complete) workout.copy(type = type)
+        else {
+            val existing = workout.exercises.map { it.exerciseId }.toSet()
+            val additions = templateExercises(state, type, workout.date).filter { it.exerciseId !in existing }
+            workout.copy(type = type, exercises = workout.exercises + additions)
+        }
     }
     fun previousSet(state: AppState, exerciseId: String): SetEntry? = state.sessions.filter { it.included }.sortedWith(compareByDescending<Workout> { it.date }.thenByDescending { it.startedAt })
         .asSequence().flatMap { it.exercises.asSequence() }.filter { it.exerciseId == exerciseId }

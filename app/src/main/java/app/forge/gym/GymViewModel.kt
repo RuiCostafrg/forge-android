@@ -44,6 +44,7 @@ class GymViewModel(application: Application) : AndroidViewModel(application) {
         Training.start(state, type, System.currentTimeMillis())
     }
     fun update(id: String, transform: (Workout) -> Workout) = change { Training.update(it, id, transform) }
+    fun selectType(id: String, type: WorkoutType) = change { Training.selectType(it, id, type) }
     fun finish(id: String) = change { Training.finish(it, id, System.currentTimeMillis()) }
     fun reopen(id: String) = update(id) { it.copy(finishedAt = null) }
     fun confirm(id: String) = change { Training.confirm(it, id) }
