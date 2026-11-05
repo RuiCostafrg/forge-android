@@ -1,3 +1,5 @@
+![forge-android banner](assets/readme-banner.svg)
+
 # Forge for Android
 
 A native Kotlin / Jetpack Compose gym tracker that stores everything on the device.
