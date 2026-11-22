@@ -35,3 +35,11 @@ Hints:
   or to the release); verify against `Forge-Android-<TAG>.apk.sha256` in the repo.
 - `--publish` mirrors the workflow exactly (`gh release upload … --clobber`).
 - A failed checksum posts a red `signoff/verify` failure status automatically.
+
+The runner and checksum are vendored from verified-release-kit. The checks
+for this repository live in `scripts/local-ci.stages.sh`. Signoff requires
+a clean checkout and uses the exact commit tested. Use `--no-signoff`
+to run the checks on local edits.
+
+Verification downloads the APK and checksum into a temporary directory and
+removes both files after verification or upload.
